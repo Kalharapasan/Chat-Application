@@ -73,7 +73,6 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        // Fixed: Pass username parameter to addMessage
         if (db.addMessage(userId, username, content)) {
             etMessage.setText("");
             loadMessages();
@@ -92,7 +91,19 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.action_logout) {
+        int id = item.getItemId();
+
+        if (id == R.id.action_profile) {
+            // Navigate to Profile Activity
+            Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
+            startActivity(intent);
+            return true;
+        } else if (id == R.id.action_refresh) {
+            // Refresh messages
+            loadMessages();
+            Toast.makeText(this, "Messages refreshed", Toast.LENGTH_SHORT).show();
+            return true;
+        } else if (id == R.id.action_logout) {
             // Update user offline status before logout
             db.updateOnlineStatus(userId, false);
 
@@ -100,6 +111,7 @@ public class MainActivity extends AppCompatActivity {
             prefs.edit().clear().apply();
 
             Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
             finish();
             return true;
