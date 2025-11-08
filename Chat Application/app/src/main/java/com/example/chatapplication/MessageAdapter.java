@@ -2,21 +2,25 @@ package com.example.chatapplication;
 
 import android.app.AlertDialog;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.cardview.widget.CardView;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
 
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHolder> {
+
+    private static final int VIEW_TYPE_SENT = 1;
+    private static final int VIEW_TYPE_RECEIVED = 2;
 
     private Context context;
     private List<Message> messageList;
@@ -30,6 +34,16 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         this.currentUserId = currentUserId;
     }
 
+    @Override
+    public int getItemViewType(int position) {
+        Message message = messageList.get(position);
+        if (message.getUserId() == currentUserId) {
+            return VIEW_TYPE_SENT;
+        } else {
+            return VIEW_TYPE_RECEIVED;
+        }
+    }
+
     @NonNull
     @Override
     public MessageViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -40,27 +54,40 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     @Override
     public void onBindViewHolder(@NonNull MessageViewHolder holder, int position) {
         Message message = messageList.get(position);
+        boolean isSent = message.getUserId() == currentUserId;
 
+        // Set username
         holder.tvUsername.setText(message.getUsername());
 
-        // Show edited indicator if message was edited
+        // Set content with edited indicator
         String content = message.getContent();
         if (message.isEdited()) {
             content += " (edited)";
         }
         holder.tvContent.setText(content);
+
+        // Set timestamp
         holder.tvTimestamp.setText(message.getTimestamp());
 
-        // Show edit/delete buttons only for messages from current user
-        if (message.getUserId() == currentUserId) {
+        // Apply different styles for sent vs received messages
+        if (isSent) {
+            holder.messageCard.setCardBackgroundColor(context.getResources().getColor(R.color.message_sent_bg));
+            holder.messageContainer.setGravity(android.view.Gravity.END);
             holder.btnEdit.setVisibility(View.VISIBLE);
             holder.btnDelete.setVisibility(View.VISIBLE);
-
-            holder.btnEdit.setOnClickListener(v -> showEditDialog(message, position));
-            holder.btnDelete.setOnClickListener(v -> showDeleteDialog(message, position));
+            holder.tvUsername.setTextColor(context.getResources().getColor(R.color.primary_blue));
         } else {
+            holder.messageCard.setCardBackgroundColor(context.getResources().getColor(R.color.message_received_bg));
+            holder.messageContainer.setGravity(android.view.Gravity.START);
             holder.btnEdit.setVisibility(View.GONE);
             holder.btnDelete.setVisibility(View.GONE);
+            holder.tvUsername.setTextColor(context.getResources().getColor(R.color.teal_700));
+        }
+
+        // Set click listeners for sent messages
+        if (isSent) {
+            holder.btnEdit.setOnClickListener(v -> showEditDialog(message, position));
+            holder.btnDelete.setOnClickListener(v -> showDeleteDialog(message, position));
         }
     }
 
@@ -76,6 +103,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         final EditText input = new EditText(context);
         input.setText(message.getContent());
         input.setPadding(50, 30, 50, 30);
+        input.setHint("Enter new message");
         builder.setView(input);
 
         builder.setPositiveButton("Update", (dialog, which) -> {
@@ -95,7 +123,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         });
 
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
-        builder.show();
+
+        AlertDialog dialog = builder.show();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(
+                context.getResources().getColor(R.color.primary_blue)
+        );
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(
+                context.getResources().getColor(R.color.text_gray)
+        );
     }
 
     private void showDeleteDialog(Message message, int position) {
@@ -115,15 +150,26 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         });
 
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
-        builder.show();
+
+        AlertDialog dialog = builder.show();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(
+                context.getResources().getColor(R.color.delete_red)
+        );
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(
+                context.getResources().getColor(R.color.text_gray)
+        );
     }
 
     public static class MessageViewHolder extends RecyclerView.ViewHolder {
+        LinearLayout messageContainer;
+        CardView messageCard;
         TextView tvUsername, tvContent, tvTimestamp;
         ImageButton btnEdit, btnDelete;
 
         public MessageViewHolder(@NonNull View itemView) {
             super(itemView);
+            messageContainer = itemView.findViewById(R.id.messageContainer);
+            messageCard = itemView.findViewById(R.id.messageCard);
             tvUsername = itemView.findViewById(R.id.tvUsername);
             tvContent = itemView.findViewById(R.id.tvContent);
             tvTimestamp = itemView.findViewById(R.id.tvTimestamp);
