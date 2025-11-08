@@ -43,6 +43,9 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        // Update user online status
+        db.updateOnlineStatus(userId, true);
+
         recyclerView = findViewById(R.id.recyclerView);
         etMessage = findViewById(R.id.etMessage);
         btnSend = findViewById(R.id.btnSend);
@@ -58,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadMessages() {
         List<Message> messages = db.getAllMessages();
-        adapter = new MessageAdapter(this, messages);
+        adapter = new MessageAdapter(this, messages, userId);
         recyclerView.setAdapter(adapter);
     }
 
@@ -70,7 +73,8 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        if (db.addMessage(userId, content)) {
+        // Fixed: Pass username parameter to addMessage
+        if (db.addMessage(userId, username, content)) {
             etMessage.setText("");
             loadMessages();
             recyclerView.scrollToPosition(0);
@@ -89,6 +93,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.action_logout) {
+            // Update user offline status before logout
+            db.updateOnlineStatus(userId, false);
+
             SharedPreferences prefs = getSharedPreferences("ChatAppPrefs", MODE_PRIVATE);
             prefs.edit().clear().apply();
 
@@ -98,5 +105,21 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Update last seen when app goes to background
+        db.updateOnlineStatus(userId, false);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Update online status when app comes to foreground
+        if (userId != -1) {
+            db.updateOnlineStatus(userId, true);
+        }
     }
 }

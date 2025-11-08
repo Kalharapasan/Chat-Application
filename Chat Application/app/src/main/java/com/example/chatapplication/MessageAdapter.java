@@ -2,6 +2,7 @@ package com.example.chatapplication;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -20,11 +21,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     private Context context;
     private List<Message> messageList;
     private DatabaseHelper db;
+    private int currentUserId;
 
-    public MessageAdapter(Context context, List<Message> messageList) {
+    public MessageAdapter(Context context, List<Message> messageList, int currentUserId) {
         this.context = context;
         this.messageList = messageList;
         this.db = new DatabaseHelper(context);
+        this.currentUserId = currentUserId;
     }
 
     @NonNull
@@ -39,11 +42,26 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         Message message = messageList.get(position);
 
         holder.tvUsername.setText(message.getUsername());
-        holder.tvContent.setText(message.getContent());
+
+        // Show edited indicator if message was edited
+        String content = message.getContent();
+        if (message.isEdited()) {
+            content += " (edited)";
+        }
+        holder.tvContent.setText(content);
         holder.tvTimestamp.setText(message.getTimestamp());
 
-        holder.btnEdit.setOnClickListener(v -> showEditDialog(message, position));
-        holder.btnDelete.setOnClickListener(v -> showDeleteDialog(message, position));
+        // Show edit/delete buttons only for messages from current user
+        if (message.getUserId() == currentUserId) {
+            holder.btnEdit.setVisibility(View.VISIBLE);
+            holder.btnDelete.setVisibility(View.VISIBLE);
+
+            holder.btnEdit.setOnClickListener(v -> showEditDialog(message, position));
+            holder.btnDelete.setOnClickListener(v -> showDeleteDialog(message, position));
+        } else {
+            holder.btnEdit.setVisibility(View.GONE);
+            holder.btnDelete.setVisibility(View.GONE);
+        }
     }
 
     @Override
@@ -57,6 +75,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
 
         final EditText input = new EditText(context);
         input.setText(message.getContent());
+        input.setPadding(50, 30, 50, 30);
         builder.setView(input);
 
         builder.setPositiveButton("Update", (dialog, which) -> {
@@ -64,11 +83,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             if (!newContent.isEmpty()) {
                 if (db.updateMessage(message.getId(), newContent)) {
                     message.setContent(newContent);
+                    message.setEdited(true);
                     notifyItemChanged(position);
                     Toast.makeText(context, "Message updated", Toast.LENGTH_SHORT).show();
                 } else {
                     Toast.makeText(context, "Update failed", Toast.LENGTH_SHORT).show();
                 }
+            } else {
+                Toast.makeText(context, "Message cannot be empty", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -85,6 +107,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             if (db.deleteMessage(message.getId())) {
                 messageList.remove(position);
                 notifyItemRemoved(position);
+                notifyItemRangeChanged(position, messageList.size());
                 Toast.makeText(context, "Message deleted", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(context, "Delete failed", Toast.LENGTH_SHORT).show();
