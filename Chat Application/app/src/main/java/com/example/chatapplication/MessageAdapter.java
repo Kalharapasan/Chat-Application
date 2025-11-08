@@ -1,4 +1,111 @@
 package com.example.chatapplication;
 
-public class MessageAdapter {
+import android.app.AlertDialog;
+import android.content.Context;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
+
+import java.util.List;
+
+public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHolder> {
+
+    private Context context;
+    private List<Message> messageList;
+    private DatabaseHelper db;
+
+    public MessageAdapter(Context context, List<Message> messageList) {
+        this.context = context;
+        this.messageList = messageList;
+        this.db = new DatabaseHelper(context);
+    }
+
+    @NonNull
+    @Override
+    public MessageViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(context).inflate(R.layout.item_message, parent, false);
+        return new MessageViewHolder(view);
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull MessageViewHolder holder, int position) {
+        Message message = messageList.get(position);
+
+        holder.tvUsername.setText(message.getUsername());
+        holder.tvContent.setText(message.getContent());
+        holder.tvTimestamp.setText(message.getTimestamp());
+
+        holder.btnEdit.setOnClickListener(v -> showEditDialog(message, position));
+        holder.btnDelete.setOnClickListener(v -> showDeleteDialog(message, position));
+    }
+
+    @Override
+    public int getItemCount() {
+        return messageList.size();
+    }
+
+    private void showEditDialog(Message message, int position) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle("Edit Message");
+
+        final EditText input = new EditText(context);
+        input.setText(message.getContent());
+        builder.setView(input);
+
+        builder.setPositiveButton("Update", (dialog, which) -> {
+            String newContent = input.getText().toString().trim();
+            if (!newContent.isEmpty()) {
+                if (db.updateMessage(message.getId(), newContent)) {
+                    message.setContent(newContent);
+                    notifyItemChanged(position);
+                    Toast.makeText(context, "Message updated", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(context, "Update failed", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
+        builder.show();
+    }
+
+    private void showDeleteDialog(Message message, int position) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle("Delete Message");
+        builder.setMessage("Are you sure you want to delete this message?");
+
+        builder.setPositiveButton("Delete", (dialog, which) -> {
+            if (db.deleteMessage(message.getId())) {
+                messageList.remove(position);
+                notifyItemRemoved(position);
+                Toast.makeText(context, "Message deleted", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(context, "Delete failed", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
+        builder.show();
+    }
+
+    public static class MessageViewHolder extends RecyclerView.ViewHolder {
+        TextView tvUsername, tvContent, tvTimestamp;
+        ImageButton btnEdit, btnDelete;
+
+        public MessageViewHolder(@NonNull View itemView) {
+            super(itemView);
+            tvUsername = itemView.findViewById(R.id.tvUsername);
+            tvContent = itemView.findViewById(R.id.tvContent);
+            tvTimestamp = itemView.findViewById(R.id.tvTimestamp);
+            btnEdit = itemView.findViewById(R.id.btnEdit);
+            btnDelete = itemView.findViewById(R.id.btnDelete);
+        }
+    }
 }
